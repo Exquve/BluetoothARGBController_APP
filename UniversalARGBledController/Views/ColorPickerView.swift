@@ -125,15 +125,15 @@ struct ColorPickerView: View {
                     case 0:
                         PresetColorsView(colors: presetColors) { color in
                             ledController.currentColor = color
-                            let (r, g, b) = rgbValues(from: color)
-                            bluetoothManager.starlightSetColor(red: UInt8(r), green: UInt8(g), blue: UInt8(b))
+                            let (h, s) = hsvValues(from: color)
+                            bluetoothManager.starlightSetColorHSV(hue: h, saturation: s)
                         }
                         
                     case 1:
                         CustomColorView { color in
                             ledController.currentColor = color
-                            let (r, g, b) = rgbValues(from: color)
-                            bluetoothManager.starlightSetColor(red: UInt8(r), green: UInt8(g), blue: UInt8(b))
+                            let (h, s) = hsvValues(from: color)
+                            bluetoothManager.starlightSetColorHSV(hue: h, saturation: s)
                         }
                         
                     case 2:
@@ -141,8 +141,8 @@ struct ColorPickerView: View {
                             savedColors: $customColors,
                             onColorSelected: { color in
                                 ledController.currentColor = color
-                                let (r, g, b) = rgbValues(from: color)
-                                bluetoothManager.starlightSetColor(red: UInt8(r), green: UInt8(g), blue: UInt8(b))
+                                let (h, s) = hsvValues(from: color)
+                                bluetoothManager.starlightSetColorHSV(hue: h, saturation: s)
                             }
                         )
                         
@@ -176,6 +176,39 @@ struct ColorPickerView: View {
             Int(green * 255), 
             Int(blue * 255)
         )
+    }
+    
+    private func hsvValues(from color: Color) -> (hue: Int, saturation: Int) {
+        let uiColor = NSColor(color)
+        
+        // Convert to RGB first
+        guard let rgbColor = uiColor.usingColorSpace(.sRGB) else {
+            return (0, 0)
+        }
+        
+        var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
+        rgbColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+        
+        let maxC = max(red, green, blue)
+        let minC = min(red, green, blue)
+        let delta = maxC - minC
+        
+        var hue: CGFloat = 0
+        if delta != 0 {
+            if maxC == red {
+                hue = 60 * (((green - blue) / delta).truncatingRemainder(dividingBy: 6))
+            } else if maxC == green {
+                hue = 60 * (((blue - red) / delta) + 2)
+            } else {
+                hue = 60 * (((red - green) / delta) + 4)
+            }
+        }
+        if hue < 0 { hue += 360 }
+        
+        let sat = maxC == 0 ? 0 : (delta / maxC)
+        
+        // STARLIGHT protocol: H: 0-360, S: 0-997
+        return (Int(hue), Int(sat * 997))
     }
     
     private func hexValue(from color: Color) -> String {
@@ -227,12 +260,9 @@ struct CustomColorView: View {
                 .font(.headline)
             
             HStack {
-                // macOS Color Picker
+                // macOS Color Picker - NO DIRECT SENDING
                 ColorPicker("Renk seçin", selection: $selectedColor, supportsOpacity: false)
                     .labelsHidden()
-                    .onChange(of: selectedColor) { newColor in
-                        onColorSelected(newColor)
-                    }
                 
                 Spacer()
                 

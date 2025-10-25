@@ -675,6 +675,42 @@ class BluetoothManager: NSObject, ObservableObject {
         print("🌟 STARLIGHT Power \(on ? "ON" : "OFF"): \(data.map { String(format: "%02X", $0) }.joined(separator: " "))")
     }
     
+    /// STARLIGHT HSV Color Control (Color Wheel)
+    /// - Parameters:
+    ///   - hue: 0-360 (color tone)
+    ///   - saturation: 0-997 (997 = fully saturated, MAX value)
+    func starlightSetColorHSV(hue: Int, saturation: Int) {
+        guard let device = connectedDevice, let writeChar = ledControlCharacteristic else {
+            print("❌ STARLIGHT: No device or characteristic")
+            return
+        }
+        
+        // Clamp values
+        let h = min(max(hue, 0), 360)
+        let s = min(max(saturation, 0), 997)
+        
+        // Convert HSV to RGB for display
+        let hNorm = Double(h) / 360.0
+        let sNorm = Double(s) / 997.0
+        let vNorm = 1.0  // Full brightness for color wheel
+        
+        let (red, green, blue) = hsvToRGB(h: hNorm, s: sNorm, v: vNorm)
+        
+        // Build command as per starlight_final.py set_color_wheel
+        let command: [UInt8] = [
+            0xBC, 0x04, 0x06,
+            UInt8(h / 255), UInt8(h % 255),
+            UInt8(s / 255), UInt8(s % 255),
+            0x00, 0x00,
+            red, green, blue,
+            0x55
+        ]
+        
+        let data = Data(command)
+        device.writeValue(data, for: writeChar, type: .withoutResponse)
+        print("🎨 STARLIGHT HSV(H:\(h)° S:\(s)/997) → RGB(\(red),\(green),\(blue)): \(data.map { String(format: "%02X", $0) }.joined(separator: " "))")
+    }
+    
     /// STARLIGHT Brightness Control
     func starlightBrightness(_ brightness: Int) {
         guard let device = connectedDevice, let writeChar = ledControlCharacteristic else {
@@ -776,6 +812,36 @@ class BluetoothManager: NSObject, ObservableObject {
         let val = maxC
         
         return (Int(hue), Int(sat * 1000), Int(val * 1000))
+    }
+    
+    /// HSV to RGB conversion
+    private func hsvToRGB(h: Double, s: Double, v: Double) -> (UInt8, UInt8, UInt8) {
+        let c = v * s
+        let x = c * (1 - abs((h * 6).truncatingRemainder(dividingBy: 2) - 1))
+        let m = v - c
+        
+        var r: Double = 0, g: Double = 0, b: Double = 0
+        
+        let hSegment = h * 6
+        if hSegment < 1 {
+            r = c; g = x; b = 0
+        } else if hSegment < 2 {
+            r = x; g = c; b = 0
+        } else if hSegment < 3 {
+            r = 0; g = c; b = x
+        } else if hSegment < 4 {
+            r = 0; g = x; b = c
+        } else if hSegment < 5 {
+            r = x; g = 0; b = c
+        } else {
+            r = c; g = 0; b = x
+        }
+        
+        return (
+            UInt8((r + m) * 255),
+            UInt8((g + m) * 255),
+            UInt8((b + m) * 255)
+        )
     }
     
     /// Test a specific characteristic with common LED commands

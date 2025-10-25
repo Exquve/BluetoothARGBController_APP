@@ -195,14 +195,33 @@ class LEDController: ObservableObject {
         var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
         srgbColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
         
-        let r = UInt8(red * 255)
-        let g = UInt8(green * 255)
-        let b = UInt8(blue * 255)
+        // Convert RGB to HSV for STARLIGHT protocol
+        let maxC = max(red, green, blue)
+        let minC = min(red, green, blue)
+        let delta = maxC - minC
         
-        print("🎨 Sending color: R:\(r) G:\(g) B:\(b) (brightness: \(Int(brightness * 100))%)")
+        var hue: CGFloat = 0
+        if delta != 0 {
+            if maxC == red {
+                hue = 60 * (((green - blue) / delta).truncatingRemainder(dividingBy: 6))
+            } else if maxC == green {
+                hue = 60 * (((blue - red) / delta) + 2)
+            } else {
+                hue = 60 * (((red - green) / delta) + 4)
+            }
+        }
+        if hue < 0 { hue += 360 }
         
-        // STARLIGHT: RGB color control
-        bluetoothManager?.starlightSetColor(red: r, green: g, blue: b)
+        let sat = maxC == 0 ? 0 : (delta / maxC)
+        
+        // STARLIGHT protocol: H: 0-360, S: 0-997
+        let h = Int(hue)
+        let s = Int(sat * 997)
+        
+        print("🎨 Sending HSV color: H:\(h)° S:\(s)/997 (brightness: \(Int(brightness * 100))%)")
+        
+        // STARLIGHT: HSV color control
+        bluetoothManager?.starlightSetColorHSV(hue: h, saturation: s)
         
         // STARLIGHT: Brightness control
         let starlightBrightness = Int(brightness * 1000)
