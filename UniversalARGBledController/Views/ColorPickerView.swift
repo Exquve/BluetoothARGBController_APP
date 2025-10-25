@@ -298,14 +298,13 @@ struct HSVColorControls: View {
     
     @State private var hue: Double = 0
     @State private var saturation: Double = 1
-    @State private var brightness: Double = 1
     
     var body: some View {
         VStack(spacing: 8) {
             // Hue Slider
             HStack {
                 Text("Ton")
-                    .frame(width: 50, alignment: .leading)
+                    .frame(width: 70, alignment: .leading)
                 Slider(value: $hue, in: 0...360)
                     .onChange(of: hue) { _ in updateColor() }
                 Text("\(Int(hue))°")
@@ -315,20 +314,10 @@ struct HSVColorControls: View {
             // Saturation Slider  
             HStack {
                 Text("Doygunluk")
-                    .frame(width: 50, alignment: .leading)
+                    .frame(width: 70, alignment: .leading)
                 Slider(value: $saturation, in: 0...1)
                     .onChange(of: saturation) { _ in updateColor() }
                 Text("\(Int(saturation * 100))%")
-                    .frame(width: 40, alignment: .trailing)
-            }
-            
-            // Brightness Slider
-            HStack {
-                Text("Parlaklık")
-                    .frame(width: 50, alignment: .leading)
-                Slider(value: $brightness, in: 0...1)
-                    .onChange(of: brightness) { _ in updateColor() }
-                Text("\(Int(brightness * 100))%")
                     .frame(width: 40, alignment: .trailing)
             }
         }
@@ -336,7 +325,8 @@ struct HSVColorControls: View {
     }
     
     private func updateColor() {
-        let newColor = Color(hue: hue / 360.0, saturation: saturation, brightness: brightness)
+        // Parlaklık üstteki slider'dan kontrol ediliyor, burada 1.0 kullan
+        let newColor = Color(hue: hue / 360.0, saturation: saturation, brightness: 1.0)
         color = newColor
         onChange(newColor)
     }
