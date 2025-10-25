@@ -260,9 +260,12 @@ struct CustomColorView: View {
                 .font(.headline)
             
             HStack {
-                // macOS Color Picker - NO DIRECT SENDING
+                // macOS Color Picker - Direct sending on change
                 ColorPicker("Renk seçin", selection: $selectedColor, supportsOpacity: false)
                     .labelsHidden()
+                    .onChange(of: selectedColor) { newColor in
+                        onColorSelected(newColor)
+                    }
                 
                 Spacer()
                 
